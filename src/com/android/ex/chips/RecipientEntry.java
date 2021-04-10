@@ -113,7 +113,13 @@ public class RecipientEntry {
             boolean isFirstLevel, boolean isValid, String lookupKey, String[] permissions) {
         mEntryType = entryType;
         mIsFirstLevel = isFirstLevel;
-        mDisplayName = displayName;
+        /* UNISOC: Modify for bug1248096 @{ */
+        if (displayName != null) {
+            mDisplayName = displayName.replace("\n", " ");//UNISOC: Modify for bug 1240955
+        } else {
+            mDisplayName = displayName;
+        }
+        /* @} */
         mDestination = destination;
         mDestinationType = destinationType;
         mDestinationLabel = destinationLabel;

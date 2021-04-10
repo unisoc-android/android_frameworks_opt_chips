@@ -131,8 +131,11 @@ public class RecipientAlternatesAdapter extends CursorAdapter {
                         query.getProjection()[Queries.Query.DESTINATION] + " IN ("
                                 + bindString.toString() + ")", addressArray, null);
             }
-            recipientEntries = processContactEntries(c, null /* directoryId */);
+            /* UNISOC: Modify for bug1152950 {@ */
+            recipientEntries = processContactEntriesBetter(c, null /* directoryId */);
             callback.matchesFound(recipientEntries);
+            recipientEntries = processContactEntries(c, null /* directoryId */);
+            /* @} */
         } finally {
             if (c != null) {
                 c.close();
@@ -204,14 +207,17 @@ public class RecipientAlternatesAdapter extends CursorAdapter {
                                     directoryId, account, context, query, permissionsCheckListener);
                             if (directoryContactsCursor != null
                                     && directoryContactsCursor.getCount() != 0) {
+                                /* UNISOC: Modify for bug1152950 {@ */
                                 // We found the directory with at least one contact
-                                final Map<String, RecipientEntry> entries =
+                                Map<String, RecipientEntry> entries =
                                         processContactEntries(directoryContactsCursor, directoryId);
 
                                 for (final String address : entries.keySet()) {
                                     matchesNotFound.remove(address);
                                 }
 
+                                entries = processContactEntriesBetter(directoryContactsCursor, directoryId);
+                                /* @} */
                                 callback.matchesFound(entries);
                                 break;
                             }
@@ -244,6 +250,38 @@ public class RecipientAlternatesAdapter extends CursorAdapter {
         }
         callback.matchesNotFound(matchesNotFound);
     }
+
+    /* UNISOC: Modify for bug 1152950 {@ */
+    private static HashMap<String, RecipientEntry> processContactEntriesBetter(Cursor c,
+            Long directoryId) {
+        HashMap<String, RecipientEntry> recipientEntries = new HashMap<String, RecipientEntry>();
+        if (c != null && c.moveToFirst()) {
+            do {
+                String address = c.getString(Queries.Query.DESTINATION);
+                String name = c.getString(Queries.Query.NAME);
+
+                final RecipientEntry newRecipientEntry = RecipientEntry.constructTopLevelEntry(
+                        c.getString(Queries.Query.NAME),
+                        c.getInt(Queries.Query.DISPLAY_NAME_SOURCE),
+                        c.getString(Queries.Query.DESTINATION),
+                        c.getInt(Queries.Query.DESTINATION_TYPE),
+                        c.getString(Queries.Query.DESTINATION_LABEL),
+                        c.getLong(Queries.Query.CONTACT_ID),
+                        directoryId,
+                        c.getLong(Queries.Query.DATA_ID),
+                        c.getString(Queries.Query.PHOTO_THUMBNAIL_URI),
+                        true,
+                        c.getString(Queries.Query.LOOKUP_KEY));
+
+                final RecipientEntry recipientEntry =
+                        getBetterRecipient(recipientEntries.get(address + name), newRecipientEntry);
+
+                recipientEntries.put(address + name, recipientEntry);
+            } while (c.moveToNext());
+        }
+        return recipientEntries;
+    }
+    /* @} */
 
     private static HashMap<String, RecipientEntry> processContactEntries(Cursor c,
             Long directoryId) {
